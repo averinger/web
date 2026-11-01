@@ -1,0 +1,51 @@
+# fly.toml — конфиг Fly.io для grandrp
+# После первого `fly launch` он обновится (app name, region)
+app = "grandrp"
+primary_region = "fra"  # Frankfurt — ближе к РФ/Европе
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false    # ВАЖНО: не усыплять машину (нужен постоянный сервер)
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+# Healthcheck — Fly пингует /health каждые 30с
+[[services.ports]]
+  port = 80
+  handlers = ["http"]
+  force_https = true
+
+[[services.ports]]
+  port = 443
+  handlers = ["tls", "http"]
+
+# Healthcheck endpoint
+[services.http_checks]
+  interval = "30s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+  timeout = "3s"
+  restart_limit = 3
+
+# Persistent volume для SQLite БД (3 GB в бесплатном тарифе)
+[mounts]
+  source = "grandrp_data"
+  destination = "/app/data"
+
+# Environment variables (секреты задай через `fly secrets set`)
+[env]
+  PORT = "8080"
+  DB_PATH = "/app/data/app.db"
+  # NODE_ENV = "production"
+
+# Масштабирование (бесплатный тариф: shared-cpu-1x, 256 MB)
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+  cpus = 1
